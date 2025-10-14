@@ -8,7 +8,7 @@ from torch_geometric.utils import convert
 from torch_sparse import SparseTensor
 from loguru import logger
 from moral import MORAL
-# from sinkhorn import Sinkhorn
+import torch.nn.functional as F
 import random
 
 def seed_everything(seed):
@@ -26,6 +26,27 @@ def mask_graphair(old_split_edge, new_edge_index):
     for edge in tqdm(old_split_edge):
         mask |= ((edge[0] == new_edge_index).any(0) & (edge[1] == new_edge_index).any(0))           
     return mask
+
+def generate_array_greedy_dkl(n, p, dist_size=3):
+    """
+    Greedy approach that tries to minimize a KL-like deviation as positions fill.
+    """
+    actual_counts = np.zeros(dist_size)
+    arr = []
+
+    for i in range(n):
+        # Avoid division by zero when i == 0
+        if i == 0:
+            choice = int(np.argmax(p))
+        else:
+            # Prefer the group that's currently most underrepresented relative to p
+            desired = p * i
+            deficit = desired - actual_counts
+            choice = int(np.argmax(deficit))
+        arr.append(choice)
+        actual_counts[choice] += 1
+
+    return torch.tensor(arr)
 
 
 @logger.catch
@@ -103,7 +124,27 @@ def main():
 
             output = fair_model.predict()
             torch.save((output), f'three_classifiers_{args.dataset}_{args.fair_model.upper()}_{args.model.upper()}_{run}.pt')
-        
+            
+            pi = F.one_hot(data.y[data.edge_index].sum(0).long(), num_classes=3).float().sum(0) / data.edge_index.shape[1]
+            
+            K = 1000 # Predicting 1000 edges
+            final_output = torch.zeros(size=(K,))
+            final_labels = torch.zeros(size=(K,))
+            output_array_positions = generate_array_greedy_dkl(K, pi.numpy())
+
+            # WARNING: The snippet below combines the edges in the test set assuming
+            # there are enough samples from each sensitive type for the chosen $K$.
+            for sens_value in range(3):
+                mask = output_array_positions == sens_value
+                sens_mask = sens == sens_value
+                sens_val_outputs_sorted, idx = output[sens_mask].sort(descending=True)
+                final_output[mask] = sens_val_outputs_sorted[:mask.sum()]
+                
+                # Selecting the labels of the current sensitive values in the order obtained when sorting by score.
+                final_labels[mask] = labels[sens_mask][idx][:mask.sum()]
+                
+            torch.save((final_output, final_labels), f'three_classifiers_{args.dataset}_{args.fair_model.upper()}_{args.model.upper()}_{run}_final_ranking.pt')
+            
         except KeyboardInterrupt:
             logger.warning("Training interrupted... running inference with current model weights")
             
