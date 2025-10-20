@@ -1,6 +1,6 @@
 # MORAL
 
-MORAL (Multi-Objective Ranking with Adversarial Learning) is the codebase that
+MORAL (Multi-Output Ranking Aggregation for Link Fairness) is the codebase that
 supports our AAAI submission on fair graph link prediction. The repository keeps
 the training loop intentionally lightweight so that other researchers can import
 the model, run experiments on the published benchmarks, and adapt the approach
