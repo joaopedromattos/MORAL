@@ -7,7 +7,7 @@ The repository keeps the training loop intentionally lightweight so that other r
 the model, run experiments on the published benchmarks, and adapt the approach
 to new datasets with minimal friction.
 
-(UPDATE - March 2026): The results of our work were [successfully reproduced as part of the Reproducibility Challenge 2026](https://github.com/unknown-gitter/reproducing-MORAL)
+(**UPDATE - March 2026**): The results of our work were [successfully reproduced as part of the Reproducibility Challenge 2026](https://github.com/unknown-gitter/reproducing-MORAL)
 
 ## Repository layout
 
